@@ -1,3 +1,10 @@
+* FORK *  
+modifications made:  
+Alt-s : stops response  
+ALt-J: jump to next message  
+Alt-k: jump to prev message  
+Alt-e: edit focused message  
+
 # ChatGPT Ctrl+Enter Sender
 
 English | [日本語](README_JA.md) | [简体中文](README_CH.md)
