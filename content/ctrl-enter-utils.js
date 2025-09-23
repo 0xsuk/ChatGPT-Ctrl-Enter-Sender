@@ -19,7 +19,9 @@ function applySiteSetting() {
 
     if (isEnabled) {
       enableSendingWithCtrlEnter();
-      enableCtrlSStopper();
+      enableAltSStopper();
+      enableAltJK();
+      enableAltE();
     } else {
       disableSendingWithCtrlEnter();
     }

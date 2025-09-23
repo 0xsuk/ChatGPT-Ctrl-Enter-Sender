@@ -62,28 +62,200 @@ function getStopButton() {
   );
 }
 
-function handleCtrlS(event) {
+function handleAltS(event) {
   // ユーザー操作のみ対象（無限ループ防止）
   if (!event.isTrusted) return;
 
-  // Ctrl(or ⌘)+S の検出（OS問わず）
-  const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+  // Alt+S の検出
+  const isAlt = event.altKey; // AltGraph 対策が必要なら event.getModifierState?.('AltGraph') を併用
   const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
-  if (!isCtrlOrMeta || !isKeyS) return;
+  if (!isAlt || !isKeyS) return;
 
-  // ChatGPT側の停止ボタンが表示されている（=ストリーミング中）ときだけ動作
+  // ChatGPT 停止ボタンが表示されている（=ストリーミング中）のときだけ動作
   const stopBtn = getStopButton();
   if (stopBtn && !stopBtn.disabled) {
-    event.preventDefault();   // ブラウザの「ページ保存」を抑止
+    event.preventDefault();   // 既定動作を抑止（念のため）
     stopBtn.click();          // 停止！
   }
 }
 
-function enableCtrlSStopper() {
+function enableAltSStopper() {
   try {
-    // capture: true で早めに奪う（ページ保存を確実に防ぐ）
-    window.addEventListener('keydown', handleCtrlS, true);
+    // capture: true で早めに奪う（ページ保存や他ハンドラより先に処理）
+    window.addEventListener('keydown', handleAltS, true);
   } catch (_) {}
+}
+function jumpToMessageId(id) {
+  // Build the full data-testid string
+  const selector = `article[data-testid="conversation-turn-${id}"]`;
+
+  // Find the node
+  const node = document.querySelector(selector);
+
+  if (node) {
+    node.scrollIntoView({
+      behavior: "instant", // smooth scroll
+      block: "end"     // center it vertically
+    });
+    node.classList.add("rainbow-highlight");
+    setTimeout(() => {
+      node.classList.remove("rainbow-highlight");
+    }, 1000); // 1秒で消す
+  } else {
+    console.warn(`No conversation with id ${id} found`);
+  }
+}
+
+function getMessageNodes() {
+  const messages = Array.from(document.querySelectorAll('article'));
+  return messages;
+}
+
+function getMessageNodesFromUser() {
+  const messages = getMessageNodes()
+  messages.filter(msg => msg.getAttribute("data-turn") === "user");
+}
+
+(function injectRainbowStyle() {
+  if (document.getElementById("rainbow-style")) return;
+  const style = document.createElement("style");
+  style.id = "rainbow-style";
+  style.textContent = `
+    @keyframes rainbow-border {
+      0% { border-color: red; }
+      20% { border-color: orange; }
+      40% { border-color: yellow; }
+      60% { border-color: green; }
+      80% { border-color: blue; }
+      100% { border-color: purple; }
+    }
+    .rainbow-highlight {
+      border: 3px solid red;
+      border-radius: 8px;
+      animation: rainbow-border 1s linear infinite;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+// 画面下端に最も近い article を current とみなす
+// null if no node is present
+function getCurrentMessageNode() {
+  const viewportBottom = window.innerHeight;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const el of getMessageNodes()) {
+    const r = el.getBoundingClientRect();
+    if (r.height <= 0 || r.bottom <= 0 || r.top >= viewportBottom) {
+      // まったく見えてない要素はスキップ
+      continue;
+    }
+    // 要素の下端が画面下端にどれくらい近いかを測る
+    const dist = Math.abs(viewportBottom - r.bottom);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el;
+    }
+  }
+  return best;
+}
+
+function isAssistant(node){
+  return node.getAttribute("data-turn") == "assistant"  
+}
+function isUser(node) {
+  return node.getAttribute("data-turn") == "user"  
+}
+function getMessageId(node) {
+  const id_string = node.getAttribute("data-testid").split("-").pop()
+  return Number(id_string)
+}
+
+function min(a,b) {
+  return a<b?a:b;
+}
+function max(a,b) {
+  return a<b?b:a;
+}
+
+//when  last message node is from assistant, go to message node by user
+function jumpMessage(prevFlag) {
+  const messages = getMessageNodes();
+  const last_id = messages.length;
+  
+  console.log(last_id)
+  
+  const node = getCurrentMessageNode()
+  console.log("node",node)
+  if (node==null) return
+
+  const id = getMessageId(node);
+  console.log("id",id)
+  if (isAssistant(node)) {
+    if (prevFlag) {
+      jumpToMessageId(max(id-1, 1));
+    } else {
+      jumpToMessageId(min(id+1, last_id));
+    }
+  }
+
+  else {//isUser(node)
+    if (prevFlag) {
+      console.log(min(id-2,1), id, last_id)
+      jumpToMessageId(max(id-2,1));
+    } else {
+      console.log("forward, user", min(id+2,last_id), id, "last", last_id)
+      jumpToMessageId(min(id+2,last_id));
+    }
+  }
+}
+
+//jump to prev/next message from user
+function enableAltJK() {
+  window.addEventListener("keydown", (event) => {
+    if (!event.isTrusted) return;
+
+    if (!event.altKey) return;
+
+    if (event.code === "KeyJ") {
+      event.preventDefault();
+      jumpMessage(false); // 次へ
+    } else if (event.code === "KeyK") {
+      event.preventDefault();
+      jumpMessage(true);  // 前へ
+    }
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function editCurrentNode() {
+  const node = getCurrentMessageNode()
+  const button = node.querySelectorAll("button")[1]
+
+  if (!button) return
+
+  button.click()
+  await sleep(10)
+  node.querySelector("textarea").focus();
+}
+
+//edit
+function enableAltE() {
+  window.addEventListener("keydown", (event) => {
+    if (!event.isTrusted) return;
+
+    if (!event.altKey) return;
+
+    if (event.code === "KeyE") {
+      alert("alte")
+      event.preventDefault();
+      editCurrentNode();
+    }
+  });
 }
 
 
