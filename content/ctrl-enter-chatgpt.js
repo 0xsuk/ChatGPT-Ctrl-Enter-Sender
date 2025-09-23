@@ -51,6 +51,42 @@ function handleCtrlEnter(event) {
   }
 }
 
+
+function getStopButton() {
+  // 生成中のみ表示される停止ボタンを広めのセレクタで探す
+  return (
+    document.querySelector('button[data-testid="stop-button"]') ||
+    document.querySelector('button[aria-label*="停止"]') ||
+    document.querySelector('button[aria-label*="Stop"]') ||
+    document.querySelector('#composer-submit-button[data-testid="stop-button"]')
+  );
+}
+
+function handleCtrlS(event) {
+  // ユーザー操作のみ対象（無限ループ防止）
+  if (!event.isTrusted) return;
+
+  // Ctrl(or ⌘)+S の検出（OS問わず）
+  const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+  const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
+  if (!isCtrlOrMeta || !isKeyS) return;
+
+  // ChatGPT側の停止ボタンが表示されている（=ストリーミング中）ときだけ動作
+  const stopBtn = getStopButton();
+  if (stopBtn && !stopBtn.disabled) {
+    event.preventDefault();   // ブラウザの「ページ保存」を抑止
+    stopBtn.click();          // 停止！
+  }
+}
+
+function enableCtrlSStopper() {
+  try {
+    // capture: true で早めに奪う（ページ保存を確実に防ぐ）
+    window.addEventListener('keydown', handleCtrlS, true);
+  } catch (_) {}
+}
+
+
 // Apply the setting based on the current site on initial load
 applySiteSetting();
 

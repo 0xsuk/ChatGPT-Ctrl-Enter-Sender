@@ -19,6 +19,7 @@ function applySiteSetting() {
 
     if (isEnabled) {
       enableSendingWithCtrlEnter();
+      enableCtrlSStopper();
     } else {
       disableSendingWithCtrlEnter();
     }
