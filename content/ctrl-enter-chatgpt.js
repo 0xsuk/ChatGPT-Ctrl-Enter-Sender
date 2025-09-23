@@ -177,7 +177,7 @@ function jumpMessage(prevFlag) {
       jumpToMessageId(max(id-1, 1));
     } else {
       if (id+1>last_id) {
-        jumpToMessageId(last_id, "start");
+        jumpToMessageId(last_id, "end");
       } else {
         jumpToMessageId(id+1);
       }
@@ -190,7 +190,7 @@ function jumpMessage(prevFlag) {
       jumpToMessageId(max(id-2,1));
     } else {
       if (id+2>last_id){
-        jumpToMessageId(last_id, "start");
+        jumpToMessageId(last_id, "end");
       } else {
         jumpToMessageId(id+2);
       }
@@ -226,15 +226,24 @@ function getCurrentMessageNode() {
 
   for (const el of getMessageNodes()) {
     const r = el.getBoundingClientRect();
-    if (r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) {
-      // 全く見えてない要素はスキップ (必要なら外してOK)
-      continue;
+
+    // 全く見えてない要素はスキップ
+    if (r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) continue;
+
+    // center が要素の範囲内にあるか？
+    if (r.top <= centerY && centerY <= r.bottom) {
+      // 中心を含んでいる要素は無条件で最優先
+      return el;
     }
-    const elCenter = (r.top + r.bottom) / 2;
-    const dist = Math.abs(elCenter - centerY);
+
+    // 含まれていなければ、top/bottom のどちらか近い方で比較
+    const topDist = Math.abs(r.top - centerY);
+    const bottomDist = Math.abs(r.bottom - centerY);
+    const dist = Math.min(topDist, bottomDist);
+
     if (dist < bestDist) {
-      bestDist = dist;
       best = el;
+      bestDist = dist;
     }
   }
   return best;
