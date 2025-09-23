@@ -85,7 +85,8 @@ function enableAltSStopper() {
     window.addEventListener('keydown', handleAltS, true);
   } catch (_) {}
 }
-function jumpToMessageId(id) {
+
+function jumpToMessageId(id, flag) {
   // Build the full data-testid string
   const selector = `article[data-testid="conversation-turn-${id}"]`;
 
@@ -95,7 +96,7 @@ function jumpToMessageId(id) {
   if (node) {
     node.scrollIntoView({
       behavior: "instant", // smooth scroll
-      block: "end"     // center it vertically
+      block:flag?flag: "center"     // center it vertically
     });
     node.classList.add("rainbow-highlight");
     setTimeout(() => {
@@ -138,29 +139,6 @@ function getMessageNodesFromUser() {
   document.head.appendChild(style);
 })();
 
-// 画面下端に最も近い article を current とみなす
-// null if no node is present
-function getCurrentMessageNode() {
-  const viewportBottom = window.innerHeight;
-  let best = null;
-  let bestDist = Infinity;
-
-  for (const el of getMessageNodes()) {
-    const r = el.getBoundingClientRect();
-    if (r.height <= 0 || r.bottom <= 0 || r.top >= viewportBottom) {
-      // まったく見えてない要素はスキップ
-      continue;
-    }
-    // 要素の下端が画面下端にどれくらい近いかを測る
-    const dist = Math.abs(viewportBottom - r.bottom);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = el;
-    }
-  }
-  return best;
-}
-
 function isAssistant(node){
   return node.getAttribute("data-turn") == "assistant"  
 }
@@ -182,7 +160,9 @@ function max(a,b) {
 //when  last message node is from assistant, go to message node by user
 function jumpMessage(prevFlag) {
   const messages = getMessageNodes();
-  const last_id = messages.length;
+  const last_node = messages[messages.length-1];
+  const last_id = getMessageId(last_node);
+  
   
   console.log(last_id)
   
@@ -196,7 +176,11 @@ function jumpMessage(prevFlag) {
     if (prevFlag) {
       jumpToMessageId(max(id-1, 1));
     } else {
-      jumpToMessageId(min(id+1, last_id));
+      if (id+1>last_id) {
+        jumpToMessageId(last_id, "start");
+      } else {
+        jumpToMessageId(id+1);
+      }
     }
   }
 
@@ -205,8 +189,11 @@ function jumpMessage(prevFlag) {
       console.log(min(id-2,1), id, last_id)
       jumpToMessageId(max(id-2,1));
     } else {
-      console.log("forward, user", min(id+2,last_id), id, "last", last_id)
-      jumpToMessageId(min(id+2,last_id));
+      if (id+2>last_id){
+        jumpToMessageId(last_id, "start");
+      } else {
+        jumpToMessageId(id+2);
+      }
     }
   }
 }
@@ -232,6 +219,28 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function getCurrentMessageNode() {
+  const centerY = window.innerHeight / 2;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const el of getMessageNodes()) {
+    const r = el.getBoundingClientRect();
+    if (r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) {
+      // 全く見えてない要素はスキップ (必要なら外してOK)
+      continue;
+    }
+    const elCenter = (r.top + r.bottom) / 2;
+    const dist = Math.abs(elCenter - centerY);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = el;
+    }
+  }
+  return best;
+}
+
+
 async function editCurrentNode() {
   const node = getCurrentMessageNode()
   const button = node.querySelectorAll("button")[1]
@@ -251,7 +260,6 @@ function enableAltE() {
     if (!event.altKey) return;
 
     if (event.code === "KeyE") {
-      alert("alte")
       event.preventDefault();
       editCurrentNode();
     }
