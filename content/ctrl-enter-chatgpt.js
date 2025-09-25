@@ -86,6 +86,8 @@ function enableAltSStopper() {
   } catch (_) {}
 }
 
+let jumped_node = null;
+
 function jumpToMessageId(id, flag) {
   // Build the full data-testid string
   const selector = `article[data-testid="conversation-turn-${id}"]`;
@@ -102,6 +104,7 @@ function jumpToMessageId(id, flag) {
     setTimeout(() => {
       node.classList.remove("rainbow-highlight");
     }, 1000); // 1秒で消す
+    jumped_node = node;
   } else {
     console.warn(`No conversation with id ${id} found`);
   }
@@ -249,15 +252,35 @@ function getCurrentMessageNode() {
   return best;
 }
 
+function isEditing(node) {
+  return node.querySelector("textarea") !== null
+}
+
+function cancelEditCurrentNode(node) {
+  const cancel_button = Array.from(node.querySelectorAll('button')).find(btn => btn.textContent.trim().includes("キャンセル"));
+
+  cancel_button.click()
+}
 
 async function editCurrentNode() {
-  const node = getCurrentMessageNode()
+  const node = jumped_node;
+  
+  if (isEditing(node)) {
+    cancelEditCurrentNode(node);
+    return;
+  }
+  
+  if (!isUser(node)) {
+    console.log("not user node");
+    return;
+  }
+  
   const button = node.querySelectorAll("button")[1]
 
   if (!button) return
 
   button.click()
-  await sleep(10)
+  await sleep(3)
   node.querySelector("textarea").focus();
 }
 
