@@ -275,7 +275,7 @@ async function editCurrentNode() {
     return;
   }
   
-  const button = node.querySelectorAll("button")[1]
+  const button = node.querySelector('button[aria-label="メッセージを編集する"]');
 
   if (!button) return
 
