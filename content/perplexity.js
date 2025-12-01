@@ -1,14 +1,30 @@
 class PerplexityHandler extends Dispatcher {
-  hanldeCtrlEnter = (event) => {
-    if (event.target.tagName !== "TEXTAREA" || !event.isTrusted) {
-      return;
-    }
-
+  handleCtrlEnter = (event) => {
+    if (!event.isTrusted) return
     const isOnlyEnter = (event.code === "Enter") && !(event.ctrlKey || event.metaKey);
+    const isCtrlEnter = (event.code === "Enter") && event.ctrlKey;
 
     if (isOnlyEnter) {
       // stopPropagation for both Windows and Mac
       event.stopPropagation();
+      return
+    }
+
+    if (isCtrlEnter) {
+      if (event.target.tagName === "BODY") {
+        event.preventDefault();
+        const btn = getSubmitButtonForEdit()
+        if (btn) {
+          btn.click()
+        }
+      } else {
+        event.preventDefault();
+        const btn = getSubmitButton()
+        if (btn) {
+          btn.click()
+        }
+      }
+      
     }
   }
 
@@ -23,7 +39,9 @@ class PerplexityHandler extends Dispatcher {
     }
     
   }
-  handleAltE = (event) => {}
+  handleAltE = (event) => {
+    
+  }
   handleAltJK = (event) => {}
 }
 
@@ -31,4 +49,13 @@ class PerplexityHandler extends Dispatcher {
 
 function getStopButton() {
   return document.querySelector('[data-testid="stop-generating-response-button"]');
+}
+
+function getSubmitButton() {
+  return document.querySelector('[data-testid="submit-button"]');
+}
+
+function getSubmitButtonForEdit() {
+  const button = [...document.querySelectorAll('button')] .find(btn => btn.textContent.trim() == '完了');
+  return button
 }
