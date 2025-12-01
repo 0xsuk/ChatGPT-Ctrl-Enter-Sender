@@ -54,38 +54,26 @@ class ChatGPTHandler extends Dispatcher {
   }
 
   handleAltJK = (event) => {
-    if (!event.isTrusted) return;
-
-    if (!event.altKey) return;
-
-    if (event.code === "KeyJ") {
+    if (isAltJ(event)) {
       event.preventDefault();
       jumpMessage(false); // 次へ
-    } else if (event.code === "KeyK") {
+    } else if (isAltK(event)) {
       event.preventDefault();
       jumpMessage(true);  // 前へ
     }
   }
   
   handleAltE = (event) => {
-    if (!event.isTrusted) return;
-
-    if (!event.altKey) return;
-
-    if (event.code === "KeyE") {
+    if (isAltE(event)) {
       event.preventDefault();
       editCurrentNode();
     }
   }
   
   handleAltS = (event) => {
-    // ユーザー操作のみ対象（無限ループ防止）
-    if (!event.isTrusted) return;
-
-    // Alt+S の検出
-    const isAlt = event.altKey; // AltGraph 対策が必要なら event.getModifierState?.('AltGraph') を併用
-    const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
-    if (!isAlt || !isKeyS) return;
+    if (!isAltS(event)) {
+      return
+    }
 
     // ChatGPT 停止ボタンが表示されている（=ストリーミング中）のときだけ動作
     const stopBtn = getStopButton();

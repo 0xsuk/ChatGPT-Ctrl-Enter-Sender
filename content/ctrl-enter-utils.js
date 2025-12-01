@@ -72,6 +72,49 @@ function applySiteSetting() {
 applySiteSetting()
 
 
+function hasAlt(event) {
+  // ユーザー操作のみ対象（無限ループ防止）
+  if (!event.isTrusted) return false;
+
+  // Alt+S の検出
+  return event.altKey; // AltGraph 対策が必要なら event.getModifierState?.('AltGraph') を併用
+}
+
+function isAltS(event) {
+
+  if (!hasAlt(event)) {
+    return
+  }
+  
+  const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
+  if (!isKeyS) return false;
+  return true;
+}
+
+function isAltE(event) {
+  if (!hasAlt(event)) {
+    return
+  }
+
+  return event.code === "KeyE"
+}
+
+function isAltJ(event) {
+  if (!hasAlt(event)) {
+    return
+  }
+
+  return event.code === "KeyJ"
+}
+
+function isAltK(event) {
+    if (!hasAlt(event)) {
+    return
+  }
+
+  return event.code === "KeyK"
+}
+
 function min(a,b) {
   return a<b?a:b;
 }
