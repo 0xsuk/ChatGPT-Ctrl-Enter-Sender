@@ -58,9 +58,9 @@ function applySiteSetting() {
     const dispatcher = Dispatcher.getInstance(hostname)
     if (isEnabled) {
       dispatcher.enableHandleCtrlEnter();
+      dispatcher.enableHandleAltS();
 
       if (hostname == hosts.chatgpt) {
-        dispatcher.enableHandleAltS();
         dispatcher.enableHandleAltJK();
         dispatcher.enableHandleAltE();
       }
