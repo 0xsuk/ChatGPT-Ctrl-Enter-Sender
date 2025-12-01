@@ -10,6 +10,8 @@ function getHostname() {
   return window.location.hostname;
 }
 
+
+
 function applySiteSetting() {
   const hostname = getHostname();
 
@@ -27,3 +29,254 @@ function applySiteSetting() {
     }
   });
 }
+
+
+
+//my code
+function handleAltS(event) {
+  // ユーザー操作のみ対象（無限ループ防止）
+  if (!event.isTrusted) return;
+
+  // Alt+S の検出
+  const isAlt = event.altKey; // AltGraph 対策が必要なら event.getModifierState?.('AltGraph') を併用
+  const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
+  if (!isAlt || !isKeyS) return;
+
+  // ChatGPT 停止ボタンが表示されている（=ストリーミング中）のときだけ動作
+  const stopBtn = getStopButton();
+  if (stopBtn && !stopBtn.disabled) {
+    event.preventDefault();   // 既定動作を抑止（念のため）
+    stopBtn.click();          // 停止！
+  }
+}
+
+function enableAltSStopper() {
+  try {
+    // capture: true で早めに奪う（ページ保存や他ハンドラより先に処理）
+    window.addEventListener('keydown', handleAltS, true);
+  } catch (_) {}
+}
+
+let jumped_node = null;
+
+function jumpToMessageId(id, flag) {
+  // Build the full data-testid string
+  const selector = `article[data-testid="conversation-turn-${id}"]`;
+
+  // Find the node
+  const node = document.querySelector(selector);
+
+  if (node) {
+    node.scrollIntoView({
+      behavior: "instant", // smooth scroll
+      block:flag?flag: "center"     // center it vertically
+    });
+    node.classList.add("rainbow-highlight");
+    setTimeout(() => {
+      node.classList.remove("rainbow-highlight");
+    }, 1000); // 1秒で消す
+    jumped_node = node;
+  } else {
+    console.warn(`No conversation with id ${id} found`);
+  }
+}
+
+function getMessageNodes() {
+  const messages = Array.from(document.querySelectorAll('article'));
+  return messages;
+}
+
+function getMessageNodesFromUser() {
+  const messages = getMessageNodes()
+  messages.filter(msg => msg.getAttribute("data-turn") === "user");
+}
+(function injectRainbowStyle() {
+  if (document.getElementById("rainbow-style")) return;
+  const style = document.createElement("style");
+  style.id = "rainbow-style";
+  style.textContent = `
+    @keyframes rainbow-border {
+      0% { border-color: red; }
+      20% { border-color: orange; }
+      40% { border-color: yellow; }
+      60% { border-color: green; }
+      80% { border-color: blue; }
+      100% { border-color: purple; }
+    }
+    .rainbow-highlight {
+      border: 3px solid red;
+      border-radius: 8px;
+      animation: rainbow-border 1s linear infinite;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+function isAssistant(node){
+  return node.getAttribute("data-turn") == "assistant"  
+}
+function isUser(node) {
+  return node.getAttribute("data-turn") == "user"  
+}
+function getMessageId(node) {
+  const id_string = node.getAttribute("data-testid").split("-").pop()
+  return Number(id_string)
+}
+
+function min(a,b) {
+  return a<b?a:b;
+}
+function max(a,b) {
+  return a<b?b:a;
+}
+
+//when  last message node is from assistant, go to message node by user
+function jumpMessage(prevFlag) {
+  const messages = getMessageNodes();
+  const last_node = messages[messages.length-1];
+  const last_id = getMessageId(last_node);
+  
+  
+  console.log(last_id)
+  
+  const node = getCurrentMessageNode()
+  console.log("node",node)
+  if (node==null) return
+
+  const id = getMessageId(node);
+  console.log("id",id)
+  if (isAssistant(node)) {
+    if (prevFlag) {
+      jumpToMessageId(max(id-1, 1));
+    } else {
+      if (id+1>last_id) {
+        jumpToMessageId(last_id, "end");
+      } else {
+        jumpToMessageId(id+1);
+      }
+    }
+  }
+
+  else {//isUser(node)
+    if (prevFlag) {
+      console.log(min(id-2,1), id, last_id)
+      jumpToMessageId(max(id-2,1));
+    } else {
+      if (id+2>last_id){
+        jumpToMessageId(last_id, "end");
+      } else {
+        jumpToMessageId(id+2);
+      }
+    }
+  }
+}
+
+//jump to prev/next message from user
+function enableAltJK() {
+  window.addEventListener("keydown", (event) => {
+    if (!event.isTrusted) return;
+
+    if (!event.altKey) return;
+
+    if (event.code === "KeyJ") {
+      event.preventDefault();
+      jumpMessage(false); // 次へ
+    } else if (event.code === "KeyK") {
+      event.preventDefault();
+      jumpMessage(true);  // 前へ
+    }
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getCurrentMessageNode() {
+  const centerY = window.innerHeight / 2;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const el of getMessageNodes()) {
+    const r = el.getBoundingClientRect();
+
+    // 全く見えてない要素はスキップ
+    if (r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) continue;
+
+    // center が要素の範囲内にあるか？
+    if (r.top <= centerY && centerY <= r.bottom) {
+      // 中心を含んでいる要素は無条件で最優先
+      return el;
+    }
+
+    // 含まれていなければ、top/bottom のどちらか近い方で比較
+    const topDist = Math.abs(r.top - centerY);
+    const bottomDist = Math.abs(r.bottom - centerY);
+    const dist = Math.min(topDist, bottomDist);
+
+    if (dist < bestDist) {
+      best = el;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function isEditing(node) {
+  return node.querySelector("textarea") !== null
+}
+
+function cancelEditCurrentNode(node) {
+  const cancel_button = Array.from(node.querySelectorAll('button')).find(btn => btn.textContent.trim().includes("キャンセル"));
+
+  cancel_button.click()
+}
+
+async function editCurrentNode() {
+  const node = jumped_node;
+  
+  if (isEditing(node)) {
+    cancelEditCurrentNode(node);
+    return;
+  }
+  
+  if (!isUser(node)) {
+    console.log("not user node");
+    return;
+  }
+  
+  const button = node.querySelector('button[aria-label="メッセージを編集する"]');
+
+  if (!button) return
+
+  button.click()
+  await sleep(5)
+  node.querySelector("textarea").focus();
+}
+
+//edit
+function enableAltE() {
+  window.addEventListener("keydown", (event) => {
+    if (!event.isTrusted) return;
+
+    if (!event.altKey) return;
+
+    if (event.code === "KeyE") {
+      event.preventDefault();
+      editCurrentNode();
+    }
+  });
+}
+
+
+
+function getStopButton() {
+  // 生成中のみ表示される停止ボタンを広めのセレクタで探す
+  return (
+    document.querySelector('button[data-testid="stop-button"]') ||
+    document.querySelector('button[aria-label*="停止"]') ||
+    document.querySelector('button[aria-label*="Stop"]') ||
+    document.querySelector('#composer-submit-button[data-testid="stop-button"]')
+  );
+}
+
