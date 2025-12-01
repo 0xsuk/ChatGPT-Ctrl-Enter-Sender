@@ -16,15 +16,15 @@ class Dispatcher {
     }
   }
   
-  enableSendingWithCtrlEnter = () => {
+  enableHandleCtrlEnter = () => {
     document.addEventListener("keydown", this.handleCtrlEnter, { capture: true });
   }
   handleCtrlEnter = (event ) => {}
-  disableSendingWithCtrlEnter = () => {
+  disableHandleCtrlEnter = () => {
     document.removeEventListener("keydown", this.handleCtrlEnter, { capture: true });
   }
   
-  enableAltSStopper = () => {
+  enableHandleAltS = () => {
     try {
       // capture: true で早めに奪う（ページ保存や他ハンドラより先に処理）
       window.addEventListener('keydown', this.handleAltS, true);
@@ -32,12 +32,12 @@ class Dispatcher {
   }
   handleAltS = (event) => {}
   
-  enableAltJK = () => {
+  enableHandleAltJK = () => {
     window.addEventListener("keydown", this.handleAltJK);
   }
   handleAltJK = (event) => {}
   
-  enableAltE = () => {
+  enableHandleAltE = () => {
     window.addEventListener("keydown", this.handleAltE)
   }
   handleAltE = (event) => {}
@@ -57,15 +57,15 @@ function applySiteSetting() {
 
     const dispatcher = Dispatcher.getInstance(hostname)
     if (isEnabled) {
-      dispatcher.enableSendingWithCtrlEnter();
+      dispatcher.enableHandleCtrlEnter();
 
       if (hostname == hosts.chatgpt) {
-        dispatcher.enableAltSStopper();
-        dispatcher.enableAltJK();
-        dispatcher.enableAltE();
+        dispatcher.enableHandleAltS();
+        dispatcher.enableHandleAltJK();
+        dispatcher.enableHandleAltE();
       }
     } else {
-      dispatcher.disableSendingWithCtrlEnter(hostname);
+      dispatcher.disableHandleCtrlEnter(hostname);
     }
   });
 }
