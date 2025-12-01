@@ -42,9 +42,58 @@ class PerplexityHandler extends Dispatcher {
   handleAltE = (event) => {
     
   }
-  handleAltJK = (event) => {}
+  
+  handleAltJK = (event) => {
+    if (isAltJ(event)) {
+      event.preventDefault();
+      jumpMessage(false); // 次へ
+    } else if (isAltK(event)) {
+      event.preventDefault();
+      jumpMessage(true);  // 前へ
+    }
+  }
 }
 
+
+
+function getCurrentEditButton(edit_buttons) {
+  const centerY = window.innerHeight / 2;
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const el of edit_buttons) {
+    const r = el.getBoundingClientRect();
+
+    // 全く見えてない要素はスキップ
+    if (r.height <= 0 || r.bottom <= 0 || r.top >= window.innerHeight) continue;
+
+    // center が要素の範囲内にあるか？
+    if (r.top <= centerY && centerY <= r.bottom) {
+      // 中心を含んでいる要素は無条件で最優先
+      return el;
+    }
+
+    // 含まれていなければ、top/bottom のどちらか近い方で比較
+    const topDist = Math.abs(r.top - centerY);
+    const bottomDist = Math.abs(r.bottom - centerY);
+    const dist = Math.min(topDist, bottomDist);
+
+    if (dist < bestDist) {
+      best = el;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function getAllUserMessageEditButton() {
+  return document.querySelectorAll("button[aria-label='クエリを編集']")
+}
+
+function jumpMessage(prevFlag) {
+  const editButtons = getAllUserMessageEditButton()
+  consoe.log(getCurrentEditButton(editButtons))
+}
 
 
 function getStopButton() {
