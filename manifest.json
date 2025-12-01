@@ -19,7 +19,7 @@
       ],
       "js": [
         "content/ctrl-enter-utils.js",
-        "content/ctrl-enter-chatgpt.js"
+        "content/chatgpt.js"
       ]
     },
     {
@@ -34,7 +34,7 @@
       ],
       "js": [
         "content/ctrl-enter-utils.js",
-        "content/ctrl-enter-textarea.js"
+        "content/perplexity.js"
       ],
       "run_at": "document_start"
     },
@@ -50,8 +50,7 @@
         "https://m365.cloud.microsoft/*"
       ],
       "js": [
-        "content/ctrl-enter-utils.js",
-        "content/ctrl-enter-custom-inputs.js"
+        "content/ctrl-enter-utils.js"
       ],
       "run_at": "document_start"
     }

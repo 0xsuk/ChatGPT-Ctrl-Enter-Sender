@@ -1,36 +1,155 @@
-
 const hosts = {
   chatgpt: "chatgpt.com",
   perplexity: "www.perplexity.ai",
   gemini: "gemini.google.com"
 }
 
+class Dispatcher {
+  static getInstance(hostname) {
+    switch (hostname) {
+    case hosts.chatgpt:
+      return new ChatGPTHandler()
+    case hosts.perplexity:
+      return new PerplexityHandler()
+    case hosts.gemini:
+      return new GeminiHandler()
+    }
+  }
+  
+  enableSendingWithCtrlEnter = () => {
+    document.addEventListener("keydown", this.handleCtrlEnter, { capture: true });
+  }
+  handleCtrlEnter = (event ) => {}
+  disableSendingWithCtrlEnter = () => {
+    document.removeEventListener("keydown", this.handleCtrlEnter, { capture: true });
+  }
+  
+  enableAltSStopper = () => {
+    try {
+      // capture: true で早めに奪う（ページ保存や他ハンドラより先に処理）
+      window.addEventListener('keydown', this.handleAltS, true);
+    } catch (_) {}
+  }
+  handleAltS = (event) => {}
+  
+  enableAltJK = () => {
+    window.addEventListener("keydown", this.handleAltJK);
+  }
+  handleAltJK = (event) => {}
+  
+  enableAltE = () => {
+    window.addEventListener("keydown", this.handleAltE)
+  }
+  handleAltE = (event) => {}
+}
 
-function dispatchHandleCtrlEnter(hostname) {
-  switch (hostname) {
-  case hosts.chatgpt:
-    return handleCtrlEnter_chatgpt;
-  case hosts.perplexity:
-    return handleCtrlEnter_perplexity;
-  case gemini:
-    return handleCtrlEnter_gemini;
+class PerplexityHandler extends Dispatcher {
+  hanldeCtrlEnter = (event) => {
+    if (event.target.tagName !== "TEXTAREA" || !event.isTrusted) {
+      return;
+    }
+
+    const isOnlyEnter = (event.code === "Enter") && !(event.ctrlKey || event.metaKey);
+
+    if (isOnlyEnter) {
+      // stopPropagation for both Windows and Mac
+      event.stopPropagation();
+    }
+  }
+}
+
+class GeminiHandler extends Dispatcher {
+  handleCtrlEnter = (event) => {
+    function findSendButton() {
+      const submitButton = document.querySelector('query-box form button[type="submit"]');
+      if (submitButton) return submitButton;
+      return null;
+    }
+    function shouldHandleCtrlEnter(url, event) {
+      if (url.startsWith("https://claude.ai")) {
+        return event.target.tagName === "DIV" && event.target.contentEditable === "true";
+      }
+      else if (url.startsWith("https://notebooklm.google.com")) {
+        return event.target.tagName === "TEXTAREA" && event.target.classList.contains("query-box-input");
+      }
+      else if (url.startsWith("https://gemini.google.com")) {
+        return event.target.tagName === "DIV" &&
+          event.target.classList.contains("ql-editor") &&
+          event.target.contentEditable === "true";
+      }
+      else if (url.startsWith("https://www.phind.com")) {
+        return event.target.tagName === "DIV" &&
+          event.target.classList.contains("public-DraftEditor-content") &&
+          event.target.contentEditable === "true";
+      }
+      else if (url.startsWith("https://chat.deepseek.com")) {
+        return event.target.id === "chat-input";
+      }
+      else if (url.startsWith("https://grok.com")) {
+        return event.target.tagName === "TEXTAREA";
+      }
+      else if (url.startsWith("https://github.com")) {
+        return event.target.getAttribute("placeholder") === "Ask Copilot";
+      }
+      else if (url.startsWith("https://m365.cloud.microsoft/chat")) {
+        return event.target.id === "m365-chat-editor-target-element";
+      }
+      return false;
+    }
+
+    const url = window.location.href;
+
+    if (!shouldHandleCtrlEnter(url, event) || !event.isTrusted) {
+      return;
+    }
+
+    const isOnlyEnter = (event.code === "Enter") && !(event.ctrlKey || event.metaKey);
+    const isCtrlEnter = (event.code === "Enter") && (event.ctrlKey || event.metaKey);
+
+    if (isOnlyEnter || isCtrlEnter) {
+      // Prevent default behavior only for certain sites
+      const preventDefaultSites = ["https://claude.ai", "https://www.phind.com"];
+      if (preventDefaultSites.some((site) => url.startsWith(site))) {
+        event.preventDefault();
+      }
+      event.stopImmediatePropagation();
+
+      let eventConfig = {
+        key: "Enter",
+        code: "Enter",
+        bubbles: true,
+        cancelable: true,
+        shiftKey: isOnlyEnter
+      };
+
+      // Phind requires keyCode to be set explicitly
+      if (url.startsWith("https://www.phind.com")) {
+        eventConfig.keyCode = 13;
+      }
+
+      // M365 Chat requires keyCode=13 for Ctrl+Enter to send message
+      if (url.startsWith("https://m365.cloud.microsoft/chat") && isCtrlEnter) {
+        eventConfig.keyCode = 13;
+      }
+
+      const newEvent = new KeyboardEvent("keydown", eventConfig);
+      event.target.dispatchEvent(newEvent);
+    }
+
+    // NotebookLM requires clicking the send button instead of dispatching Enter
+    if (isCtrlEnter && url.startsWith("https://notebooklm.google.com")) {
+      const sendButton = findSendButton();
+      if (sendButton) {
+        sendButton.click();
+      }
+    }
   }
 }
 
 
-function enableSendingWithCtrlEnter(hostname) {
-  document.addEventListener("keydown", dispatchHandleCtrlEnter(hostname), { capture: true });
-}
-
-function disableSendingWithCtrlEnter(hostname) {
-  document.removeEventListener("keydown", dispatchHandleCtrlEnter(hostname), { capture: true });
-}
-
 function getHostname() {
   return window.location.hostname;
 }
-
-
 
 function applySiteSetting() {
   const hostname = getHostname();
@@ -39,44 +158,23 @@ function applySiteSetting() {
     const settings = data.siteSettings || {};
     const isEnabled = settings[hostname] ?? true;
 
+    const dispatcher = Dispatcher.getInstance(hostname)
     if (isEnabled) {
-      enableSendingWithCtrlEnter(hostname);
-      enableAltSStopper();
-      enableAltJK();
-      enableAltE();
+      dispatcher.enableSendingWithCtrlEnter();
+
+      if (hostname == hosts.chatgpt) {
+        dispatcher.enableAltSStopper();
+        dispatcher.enableAltJK();
+        dispatcher.enableAltE();
+      }
     } else {
-      disableSendingWithCtrlEnter(hostname);
+      dispatcher.disableSendingWithCtrlEnter(hostname);
     }
   });
 }
 applySiteSetting()
 
 
-
-//my code
-function handleAltS(event) {
-  // ユーザー操作のみ対象（無限ループ防止）
-  if (!event.isTrusted) return;
-
-  // Alt+S の検出
-  const isAlt = event.altKey; // AltGraph 対策が必要なら event.getModifierState?.('AltGraph') を併用
-  const isKeyS = event.code === 'KeyS' || (event.key && event.key.toLowerCase() === 's');
-  if (!isAlt || !isKeyS) return;
-
-  // ChatGPT 停止ボタンが表示されている（=ストリーミング中）のときだけ動作
-  const stopBtn = getStopButton();
-  if (stopBtn && !stopBtn.disabled) {
-    event.preventDefault();   // 既定動作を抑止（念のため）
-    stopBtn.click();          // 停止！
-  }
-}
-
-function enableAltSStopper() {
-  try {
-    // capture: true で早めに奪う（ページ保存や他ハンドラより先に処理）
-    window.addEventListener('keydown', handleAltS, true);
-  } catch (_) {}
-}
 
 let jumped_node = null;
 
@@ -192,23 +290,6 @@ function jumpMessage(prevFlag) {
   }
 }
 
-//jump to prev/next message from user
-function enableAltJK() {
-  window.addEventListener("keydown", (event) => {
-    if (!event.isTrusted) return;
-
-    if (!event.altKey) return;
-
-    if (event.code === "KeyJ") {
-      event.preventDefault();
-      jumpMessage(false); // 次へ
-    } else if (event.code === "KeyK") {
-      event.preventDefault();
-      jumpMessage(true);  // 前へ
-    }
-  });
-}
-
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -277,16 +358,7 @@ async function editCurrentNode() {
 
 //edit
 function enableAltE() {
-  window.addEventListener("keydown", (event) => {
-    if (!event.isTrusted) return;
-
-    if (!event.altKey) return;
-
-    if (event.code === "KeyE") {
-      event.preventDefault();
-      editCurrentNode();
-    }
-  });
+  window.addEventListener("keydown", );
 }
 
 
@@ -302,59 +374,6 @@ function getStopButton() {
 }
 
 
-
-function handleCtrlEnter_chatgpt(event) {
-  const isOnlyEnter = (event.code === "Enter") && !(event.ctrlKey || event.metaKey);
-  const isCtrlEnter = (event.code === "Enter") && event.ctrlKey;
-  const isPromptTextarea = event.target.id === "prompt-textarea";
-
-  // Ignore untrusted events
-  if (!event.isTrusted) return;
-
-  // Specific handling for ChatGPT's prompt textarea
-  if (isPromptTextarea && isOnlyEnter) {
-    event.preventDefault();
-    const newEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      code: "Enter",
-      bubbles: true,
-      cancelable: true,
-      ctrlKey: false,
-      metaKey: false,
-      shiftKey: true,  // Simulate Shift+Enter to insert a line break
-    });
-    event.target.dispatchEvent(newEvent);
-  }
-  else if (isPromptTextarea && isCtrlEnter) {
-    event.preventDefault();
-    const newEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      code: "Enter",
-      bubbles: true,
-      cancelable: true,
-      ctrlKey: false,
-      metaKey: true,  // ChatGPT UI ignores Ctrl+Enter in narrow (mobile/sidebar) view; simulate Meta+Enter instead to ensure submission
-      shiftKey: false,
-    });
-    event.target.dispatchEvent(newEvent);
-  }
-
-  // On macOS, users can submit edits using the Meta key (Command key)
-  // To allow submitting edits on Windows, convert Ctrl to Meta
-  else if (event.target.tagName === "TEXTAREA" && isCtrlEnter) {
-    event.preventDefault();
-    const newEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      code: "Enter",
-      bubbles: true,
-      cancelable: true,
-      ctrlKey: false,
-      metaKey: true,  // Simulate Meta+Enter to trigger submit on Windows as well
-      shiftKey: false,
-    });
-    event.target.dispatchEvent(newEvent);
-  }
-}
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "sync" && changes.siteSettings) {
